@@ -1,6 +1,8 @@
 <?php
 
-namespace Ekapusta\OAuth2Esia\Provider;
+/* ПРИШЛОСЬ ПОЛНОСТЬЮ СКОПИПАСТИТЬ КЛАСС Ekapusta\OAuth2Esia\Provider\EsiaProvider, т.к. некоторые вещи private */
+
+namespace app\components\oauth;
 
 use Ekapusta\OAuth2Esia\Interfaces\Provider\ProviderInterface;
 use Ekapusta\OAuth2Esia\Interfaces\Security\SignerInterface;
@@ -8,8 +10,6 @@ use Ekapusta\OAuth2Esia\Interfaces\Token\ScopedTokenInterface;
 use Ekapusta\OAuth2Esia\Token\EsiaAccessToken;
 use InvalidArgumentException;
 use Lcobucci\JWT\Parsing\Encoder;
-use Lcobucci\JWT\Signer;
-use Lcobucci\JWT\Signer\Rsa\Sha256;
 use League\OAuth2\Client\Grant\AbstractGrant;
 use League\OAuth2\Client\Provider\AbstractProvider;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
@@ -29,7 +29,7 @@ class EsiaProvider extends AbstractProvider implements ProviderInterface
 
     protected $remoteUrl = 'https://esia.gosuslugi.ru';
 
-    protected $remotePublicKey = self::RESOURCES.'esia.prod.public.key';
+    protected $remoteCertificatePath = self::RESOURCES.'esia.prod.cer';
 
     /**
      * @var SignerInterface
@@ -41,24 +41,14 @@ class EsiaProvider extends AbstractProvider implements ProviderInterface
      */
     private $encoder;
 
-    /**
-     * @var Signer
-     */
-    private $remoteSigner;
-
     public function __construct(array $options = [], array $collaborators = [])
     {
-        // Backward compatibility as of rename remoteCertificatePath -> remotePublicKey
-        if (isset($options['remoteCertificatePath'])) {
-            $options['remotePublicKey'] = $options['remoteCertificatePath'];
-        }
-
         parent::__construct($options, $collaborators);
         if (!filter_var($this->remoteUrl, FILTER_VALIDATE_URL)) {
             throw new InvalidArgumentException('Remote URL is not provided!');
         }
-        if (!file_exists($this->remotePublicKey)) {
-            throw new InvalidArgumentException('Remote public key is not provided!');
+        if (!file_exists($this->remoteCertificatePath)) {
+            throw new InvalidArgumentException('Remote certificate is not provided!');
         }
 
         if (isset($collaborators['signer']) && $collaborators['signer'] instanceof SignerInterface) {
@@ -66,11 +56,6 @@ class EsiaProvider extends AbstractProvider implements ProviderInterface
             $this->encoder = new Encoder();
         } else {
             throw new InvalidArgumentException('Signer is not provided!');
-        }
-
-        $this->remoteSigner = new Sha256();
-        if (isset($collaborators['remoteSigner']) && $collaborators['remoteSigner'] instanceof Signer) {
-            $this->remoteSigner = $collaborators['remoteSigner'];
         }
     }
 
@@ -91,13 +76,16 @@ class EsiaProvider extends AbstractProvider implements ProviderInterface
     }
 
     /**
+     * @param array $params
+     *
      * @return array
      */
     private function withClientSecret(array $params)
     {
         $message = $params['scope'].$params['timestamp'].$params['client_id'].$params['state'];
         $signature = $this->signer->sign($message);
-        $params['client_secret'] = $this->encoder->base64UrlEncode($signature);
+        // $params['client_secret'] = $this->encoder->base64UrlEncode($signature);
+    $params['client_secret'] = $signature; // т.к. криптопро возвращает уже кодированную строку
 
         return $params;
     }
@@ -200,13 +188,17 @@ class EsiaProvider extends AbstractProvider implements ProviderInterface
     protected function checkResponse(ResponseInterface $response, $data)
     {
         if ($response->getStatusCode() >= 400 || isset($data['error'])) {
-            throw new IdentityProviderException(isset($data['error']) ? $data['error'] : $response->getReasonPhrase(), $response->getStatusCode(), (string) $response->getBody());
+            throw new IdentityProviderException(
+                isset($data['error']) ? $data['error'] : $response->getReasonPhrase(),
+                $response->getStatusCode(),
+                (string) $response->getBody()
+            );
         }
     }
 
     protected function createAccessToken(array $response, AbstractGrant $grant)
     {
-        return new EsiaAccessToken($response, $this->remotePublicKey, $this->remoteSigner);
+        return new EsiaAccessToken($response, $this->remoteCertificatePath);
     }
 
     protected function createResourceOwner(array $response, AccessToken $token)
