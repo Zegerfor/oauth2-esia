@@ -1,5 +1,5 @@
 {
-  "name": "zegegrfor/oauth2-esia",
+  "name": "zegerfor/oauth2-esia",
   "type": "library",
   "description": "Allows to authenticate in ESIA and get authenticated individual personal information. Forked from ekapusta/oauth2-esia",
   "keywords": [
