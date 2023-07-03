@@ -1,6 +1,6 @@
 <?php
 
-namespace app\components\oauth;
+namespace Ekapusta\OAuth2Esia\Provider;
 
 use Ekapusta\OAuth2Esia\Security\Signer;
 

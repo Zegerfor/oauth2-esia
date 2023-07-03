@@ -2,7 +2,7 @@
 
 /* ПРИШЛОСЬ ПОЛНОСТЬЮ СКОПИПАСТИТЬ КЛАСС Ekapusta\OAuth2Esia\Provider\EsiaProvider, т.к. некоторые вещи private */
 
-namespace app\components\oauth;
+namespace Ekapusta\OAuth2Esia\Provider;
 
 use Ekapusta\OAuth2Esia\Interfaces\Provider\ProviderInterface;
 use Ekapusta\OAuth2Esia\Interfaces\Security\SignerInterface;
